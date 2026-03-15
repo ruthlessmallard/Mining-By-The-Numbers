@@ -1,0 +1,11 @@
+name: mining-by-the-numbers
+description: Terminal-based roguelike mining management simulator set in 1970s Nevada
+website: https://github.com/shawn/mining-by-the-numbers
+version: 0.1.0-alpha
+readme: README.md
+keywords: ['terminal', 'roguelike', 'mining', 'simulator', 'ascii', '1970s']
+license: MIT
+private: false
+has_issues: true
+has_projects: true
+has_wiki: true
