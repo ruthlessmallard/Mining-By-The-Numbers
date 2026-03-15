@@ -208,43 +208,76 @@ class MiningGame:
         stdscr.addstr(y, 50, f"SURFACE TONS: {self.game_state['tons_surface']}", curses.color_pair(4))
         
     def draw_mine_map(self, stdscr):
-        """Draw the ASCII mine map"""
+        """Draw the ASCII mine map with better readability"""
         height, width = stdscr.getmaxyx()
         map_start_y = 8
         map_start_x = 2
         
-        # Surface line
-        surface_text = "SURFACE"
-        surface_line = "▓" * (width - map_start_x - 2)
-        stdscr.addstr(map_start_y, map_start_x, surface_text, curses.color_pair(1))
-        stdscr.addstr(map_start_y + 1, map_start_x, surface_line, curses.color_pair(1))
+        # Header for mine section
+        stdscr.addstr(map_start_y, map_start_x, "MINE LAYOUT", curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(map_start_y + 1, map_start_x, "─" * 15, curses.color_pair(1))
         
-        # Shaft - double vertical lines
-        shaft_x = width // 4
-        current_y = map_start_y + 3
+        # Surface line with headframe indicator
+        surface_y = map_start_y + 3
+        headframe = "▓▓▓△HEADFRAME△▓▓▓"
+        surface_line = "▓" * (width - map_start_x - 25)
+        stdscr.addstr(surface_y, map_start_x, headframe, curses.color_pair(1))
         
-        # Draw levels
+        # Shaft - double vertical lines with better spacing
+        shaft_x = width // 3
+        current_y = surface_y + 2
+        
+        # Draw shaft structure
+        stdscr.addstr(current_y, shaft_x, "╭───── SHAFT ─────╮", curses.color_pair(1))
+        current_y += 1
+        
+        # Draw levels with better visual hierarchy
         levels = [1000, 1300, 1600, 1900]
-        for level in levels:
-            # Level line
+        for i, level in enumerate(levels):
+            level_y = current_y + (i * 4)
+            
+            # Level header
             level_text = f"LEVEL {level}"
-            level_line = "█" * (width - shaft_x - 10)
-            
-            stdscr.addstr(current_y, map_start_x, level_text, curses.color_pair(1))
-            
             if level == self.game_state['current_level']:
-                # Active level - show some development
-                stdscr.addstr(current_y, shaft_x, "║║", curses.color_pair(1))
-                stdscr.addstr(current_y, shaft_x + 3, level_line, curses.color_pair(1))
+                level_text += " (ACTIVE)"
                 
-                # Add some stope indicators
+            stdscr.addstr(level_y, map_start_x, level_text, curses.color_pair(1))
+            
+            # Draw shaft at this level
+            stdscr.addstr(level_y, shaft_x, "│", curses.color_pair(1))
+            
+            # Show development only for active levels
+            if level <= self.game_state['current_level']:
+                # Level line extending from shaft
+                level_line = "─" * (shaft_x - map_start_x - 15)
+                stdscr.addstr(level_y, shaft_x + 1, level_line, curses.color_pair(1))
+                
+                # Show stopes and active areas
                 if level == 1000:
-                    stdscr.addstr(current_y, shaft_x + 10, "├─ LUCKY 7 [X]", curses.color_pair(1))
-                    stdscr.addstr(current_y + 1, shaft_x + 10, "└─ MAIN DRIFT ───►", curses.color_pair(1))
-            else:
-                stdscr.addstr(current_y, shaft_x, "║║", curses.color_pair(1))
+                    # Active stope
+                    stdscr.addstr(level_y + 1, shaft_x + 5, 
+                                "├─▶ [X] LUCKY 7 STOPE (ACTIVE)", curses.color_pair(1))
+                    stdscr.addstr(level_y + 2, shaft_x + 5, 
+                                "│   500 tons remaining", curses.color_pair(4))
+                    # Future development
+                    stdscr.addstr(level_y + 1, shaft_x + 30, 
+                                "├─▶ [ ] EXPLORATION AREA", curses.color_pair(4))
                 
-            current_y += 3
+                # Show ramp if exists
+                if level < self.game_state['current_level']:
+                    ramp_text = "[▼] RAMP ACCESS (to next level)" 
+                    stdscr.addstr(level_y + 1, shaft_x + 60, ramp_text, curses.color_pair(3))
+                    
+            # Draw shaft continuation
+            stdscr.addstr(level_y + 1, shaft_x, "│", curses.color_pair(1))
+            
+        # Draw shaft bottom
+        bottom_y = current_y + (len(levels) * 4)
+        stdscr.addstr(bottom_y, shaft_x, "╰─────────────────╯", curses.color_pair(1))
+        
+        # Legend at bottom
+        legend_y = bottom_y + 2
+        stdscr.addstr(legend_y, map_start_x, "LEGEND: [X] Active  [ ] Inactive  ▼ Ramp  ├─▶ Heading", curses.color_pair(4))
             
     def draw_equipment(self, stdscr):
         """Draw equipment status panel"""
@@ -456,6 +489,89 @@ class MiningGame:
         
         # Update game state
         self.game_state['tons_surface'] += daily_production
+        
+    def show_detailed_map(self, stdscr):
+        """Show expanded mine map view"""
+        height, width = stdscr.getmaxyx()
+        stdscr.erase()
+        
+        # Centered header
+        stdscr.addstr(2, width//2 - 10, "MINE DETAILED VIEW", curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(3, 2, "═" * (width - 4), curses.color_pair(1))
+        
+        # Show more detailed map
+        self.draw_expanded_mine_map(stdscr, 5)
+        
+        stdscr.addstr(height - 2, 2, "[Press any key to return]", curses.color_pair(4))
+        stdscr.refresh()
+        stdscr.getch()
+        
+    def show_equipment_view(self, stdscr):
+        """Show detailed equipment management view"""
+        height, width = stdscr.getmaxyx()
+        stdscr.erase()
+        
+        # Header
+        stdscr.addstr(2, width//2 - 12, "EQUIPMENT MANAGEMENT", curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(3, 2, "═" * (width - 4), curses.color_pair(1))
+        
+        # Expand equipment details
+        y = 5
+        for eq_id, equipment in self.game_state['equipment'].items():
+            # Equipment header
+            size_color = curses.color_pair(1) if equipment['size'] == 'large' else curses.color_pair(4)
+            stdscr.addstr(y, 4, f"{eq_id}: {equipment['type'].title()} - {equipment['size'].title()}", size_color)
+            y += 1
+            
+            # Details
+            stdscr.addstr(y, 8, f"Condition: {equipment['condition'].title()}", curses.color_pair(4))
+            stdscr.addstr(y + 1, 8, f"Value: ${equipment['value']:,} (bought for ${equipment['purchase_price']:,})", curses.color_pair(4))
+            
+            # Status
+            status_color = curses.color_pair(2) if equipment['status'] == 'down' else curses.color_pair(1)
+            stdscr.addstr(y + 2, 8, f"Status: {equipment['status'].title()}", status_color)
+            
+            # Action options
+            if equipment['status'] != 'down':
+                stdscr.addstr(y, 40, "[D] Down for maintenance (manual)", curses.color_pair(4))
+            
+            y += 5
+        
+        stdscr.addstr(height - 2, 2, "[Press any key to return]", curses.color_pair(4))
+        stdscr.refresh()
+        stdscr.getch()
+    
+    def show_help(self, stdscr):
+        """Show help screen with controls"""
+        height, width = stdscr.getmaxyx()
+        stdscr.erase()
+        
+        # Header
+        stdscr.addstr(2, width//2 - 8, "GAME CONTROLS", curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(3, 2, "═" * (width - 4), curses.color_pair(1))
+        
+        y = 6
+        controls = [
+            ("S", "Start Shift - Begin daily operations"),
+            ("P", "PDR Meeting - Monday meetings with foremen (Mondays only)"),
+            ("M", "Mine Map - Detailed view of underground layout"),
+            ("E", "Equipment - View and manage mining equipment"),
+            ("H", "Help - Show this help screen"),
+            ("Q", "Quit - Save and exit the game")
+        ]
+        
+        for key, description in controls:
+            stdscr.addstr(y, 6, f"[{key}]", curses.color_pair(1) | curses.A_BOLD)
+            stdscr.addstr(y, 12, description, curses.color_pair(4))
+            y += 2
+        
+        # Additional info
+        stdscr.addstr(y + 2, 4, "TIP: You must hold PDR meetings every Monday before starting operations.", curses.color_pair(3))
+        stdscr.addstr(y + 3, 4, "Equipment availability decreases daily - use maintenance foremen to improve it.", curses.color_pair(3))
+        
+        stdscr.addstr(height - 2, 2, "[Press any key to return]", curses.color_pair(4))
+        stdscr.refresh()
+        stdscr.getch()
         
     def generate_daily_events(self):
         """Generate 3 random daily events"""
