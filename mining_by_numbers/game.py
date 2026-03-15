@@ -227,10 +227,33 @@ class MiningGame:
             pass
         return True
             
+    def show_splash_screen(self, stdscr):
+        """Show splash screen before main game"""
+        height, width = stdscr.getmaxyx()
+        
+        # Clear screen
+        stdscr.erase()
+        
+        # Center the splash text
+        title_y = height // 2 - 3
+        title_x = width // 2 - 15
+        
+        stdscr.addstr(title_y, title_x, "MINING BY THE NUMBERS", curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(title_y + 2, title_x, "A mining game by", curses.color_pair(4))
+        stdscr.addstr(title_y + 3, title_x, "Shawn and his AI buddy Doug", curses.color_pair(1))
+        
+        stdscr.addstr(title_y + 5, title_x - 5, "[Press any key to continue]", curses.color_pair(4))
+        
+        stdscr.refresh()
+        stdscr.getch()  # Wait for key press
+        
     def main_loop(self, stdscr):
         """Main game loop"""
         curses.curs_set(0)  # Hide cursor
         self.init_colors(stdscr)
+        
+        # Show splash screen
+        self.show_splash_screen(stdscr)
         
         # Set terminal title
         stdscr.erase()
