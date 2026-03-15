@@ -592,10 +592,6 @@ class MiningGame:
         """Update day of week and check for PDR day (Monday)"""
         self.game_state['day_of_week'] = (self.game_state['day_of_week'] % 7) + 1
         self.game_state['is_pdr_day'] = (self.game_state['day_of_week'] == 1)
-        
-        # Weekly events on Sunday
-        if self.game_state['day_of_week'] == 7:
-            self.process_weekly_events()
             
     def show_splash_screen(self, stdscr):
         """Show splash screen before main game"""
