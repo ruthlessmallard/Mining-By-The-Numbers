@@ -708,6 +708,56 @@ class MiningGame:
         """Update day of week and check for PDR day (Monday)"""
         self.game_state['day_of_week'] = (self.game_state['day_of_week'] % 7) + 1
         self.game_state['is_pdr_day'] = (self.game_state['day_of_week'] == 1)
+    
+    def handle_input(self, stdscr, key):
+        """Handle user input with proper error handling"""
+        try:
+            if key == ord('q') or key == ord('Q'):
+                return False
+            elif key == ord('s') or key == ord('S'):
+                # Start shift - check PDR day
+                if self.game_state['is_pdr_day']:
+                    # Show message that PDR meeting is required
+                    height, width = stdscr.getmaxyx()
+                    stdscr.addstr(height//2, width//2 - 15, 
+                                "PDR MEETING REQUIRED ON MONDAY", curses.color_pair(2))
+                    stdscr.addstr(height//2 + 1, width//2 - 12, 
+                                "Press P for PDR Meeting", curses.color_pair(4))
+                    stdscr.refresh()
+                    stdscr.getch()
+                else:
+                    self.resolve_daily_shift(stdscr)
+                    self.game_state['day'] += 1
+                    self.update_day_of_week()
+            elif key == ord('m') or key == ord('M'):
+                # Show expanded mine map
+                self.show_detailed_map(stdscr)
+            elif key == ord('e') or key == ord('E'):
+                # Show equipment management view
+                self.show_equipment_view(stdscr)
+            elif key == ord('p') or key == ord('P'):
+                # PDR Meeting
+                if self.game_state['is_pdr_day']:
+                    self.handle_pdr_meeting(stdscr)
+                else:
+                    height, width = stdscr.getmaxyx()
+                    stdscr.addstr(height//2, width//2 - 15, 
+                                "PDR MEETING ONLY ON MONDAYS", curses.color_pair(4))
+                    stdscr.refresh()
+                    stdscr.getch()
+            elif key == ord('h') or key == ord('H'):
+                self.show_help(stdscr)
+            return True
+        except Exception as e:
+            # Show error message if something crashes
+            height, width = stdscr.getmaxyx()
+            stdscr.addstr(height//2, width//2 - 10, f"ERROR: {str(e)}", curses.color_pair(2))
+            stdscr.addstr(height//2 + 1, width//2 - 12, "Press any key to continue", curses.color_pair(4))
+            stdscr.refresh()
+            stdscr.getch()
+            return True
+            
+    def show_splash_screen(self, stdscr):
             
     def show_splash_screen(self, stdscr):
         """Show splash screen before main game"""
