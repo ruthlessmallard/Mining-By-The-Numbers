@@ -7,6 +7,7 @@ ASCII-based mine management simulator set in 1970s Nevada
 import curses
 import json
 import os
+import random
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -36,7 +37,119 @@ class MiningGame:
                 'ventilation': 10
             },
             'nightshift_coins': 3,
-            'current_level': 1000
+            'current_level': 1000,
+            'is_pdr_day': True,  # Monday is PDR day
+            'foremen': {},
+            'equipment': {},
+            'mine_map': {},
+            'day_of_week': 1  # 1=Monday, 7=Sunday
+        }
+        
+        self.initialize_foremen()
+        self.initialize_equipment()
+        self.initialize_mine_map()
+        
+    def initialize_foremen(self):
+        """Initialize starting foremen with random stats"""
+        foreman_types = [
+            {
+                'name': 'Jake "Big Jake" Morrison',
+                'type': 'development',
+                'production': 75,
+                'reliability': 45,
+                'crew_moral': 55,
+                'secret_traits': ['cuts_corners'],
+                'weeks_employed': 0,
+                'grace_period': 3
+            },
+            {
+                'name': 'Tommy Vasquez',
+                'type': 'production',
+                'production': 65,
+                'reliability': 55,
+                'crew_moral': 60,
+                'secret_traits': ['bbq_enthusiast'],
+                'weeks_employed': 0,
+                'grace_period': 3
+            },
+            {
+                'name': 'Earl Peters',
+                'type': 'maintenance',
+                'production': 50,
+                'reliability': 80,
+                'crew_moral': 65,
+                'secret_traits': ['safety_first'],
+                'weeks_employed': 0,
+                'grace_period': 3
+            }
+        ]
+        
+        for f in foreman_types:
+            self.game_state['foremen'][f['type']] = f
+            
+    def initialize_equipment(self):
+        """Initialize starting equipment"""
+        starting_equipment = [
+            {
+                'id': 'LOA01',
+                'type': 'loader',
+                'size': 'small',
+                'availability': 60,
+                'condition': 'used',
+                'value': 45000,
+                'purchase_price': 90000,
+                'assigned_to': None,
+                'status': 'manned'
+            },
+            {
+                'id': 'HTK01',
+                'type': 'truck',
+                'size': 'medium',
+                'availability': 75,
+                'condition': 'used',
+                'value': 35000,
+                'purchase_price': 70000,
+                'assigned_to': None,
+                'status': 'manned'
+            },
+            {
+                'id': 'DRL01',
+                'type': 'drill',
+                'size': 'jackleg',
+                'availability': 55,
+                'condition': 'used',
+                'value': 25000,
+                'purchase_price': 50000,
+                'assigned_to': None,
+                'status': 'manned'
+            }
+        ]
+        
+        for eq in starting_equipment:
+            self.game_state['equipment'][eq['id']] = eq
+            
+    def initialize_mine_map(self):
+        """Initialize basic mine layout"""
+        self.game_state['mine_map'] = {
+            'levels': {
+                1000: {
+                    'developed': True,
+                    'headings': ['main_drift'],
+                    'stopes': {
+                        'lucky_7': {
+                            'status': 'active',
+                            'ore_grade': 0.15,
+                            'tons_remaining': 500
+                        }
+                    }
+                },
+                1300: {
+                    'developed': True,
+                    'headings': [],
+                    'stopes': {}
+                }
+            },
+            'shaft_bottom': 1300
         }
         
     def init_colors(self, stdscr):
@@ -208,24 +321,276 @@ class MiningGame:
         except Exception as e:
             return False
             
-    def handle_input(self, stdscr, key):
-        """Handle user input"""
-        if key == ord('q') or key == ord('Q'):
-            return False
-        elif key == ord('s') or key == ord('S'):
-            # Start shift - placeholder
-            self.game_state['day'] += 1
-            stdscr.addstr(0, 0, "Starting shift... (placeholder)", curses.color_pair(1))
-        elif key == ord('m') or key == ord('M'):
-            # Focus mine map - placeholder
-            pass
-        elif key == ord('e') or key == ord('E'):
-            # Equipment management - placeholder
-            pass
-        elif key == ord('p') or key == ord('P'):
-            # PDR Meeting - placeholder
-            pass
-        return True
+    def handle_pdr_meeting(self, stdscr):
+        """Handle Monday PDR (Production, Development, Resources) meeting"""
+        height, width = stdscr.getmaxyx()
+        
+        # Clear screen for PDR interface
+        stdscr.erase()
+        
+        # Header
+        stdscr.addstr(2, width//2 - 10, "MONDAY PDR MEETING", curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(3, 2, "=" * (width - 4), curses.color_pair(1))
+        
+        y = 5
+        
+        # Show each foreman's report
+        for foreman_type, foreman in self.game_state['foremen'].items():
+            # Foreman header
+            stdscr.addstr(y, 4, f"{foreman['name']} - {foreman_type.title()} Foreman", 
+                         curses.color_pair(1) | cursive.A_BOLD)
+            y += 1
+            
+            # Show stats with rule of 3 sliders
+            total = foreman['production'] + foreman['reliability'] + foreman['crew_moral']
+            if total != 100:  # Balance if needed
+                foreman['crew_moral'] = 100 - foreman['production'] - foreman['reliability']
+            
+        # Draw foreman skill bars
+        self.draw_foreman_bar(stdscr, y, start_x + 8, "PROD", foreman['production'])
+        self.draw_foreman_bar(stdscr, y + 1, start_x + 8, "RELY", foreman['reliability'])
+        self.draw_foreman_bar(stdscr, y + 2, start_x + 8, "CREW", foreman['crew_moral'])
+            
+            y += 4
+            
+            # Foreman asks their question
+            if foreman_type == 'development':
+                question = "Which heading should we advance this week, boss?"
+                options = ["Left drift", "Right drift", "Continue main drift"]
+            elif foreman_type == 'production':
+                question = "Which stopes should we muck out this week?"
+                options = ["Lucky 7 (Grade: 0.15 oz/ton)", "Explore new area", "Focus on development"]
+            else:  # maintenance
+                question = "What's the maintenance scope for this week?"
+                options = ["Planned maintenance on all equipment", "Basic PM/Oil changes", "Clean shop - reactive only"]
+            
+            stdscr.addstr(y, 6, question, curses.color_pair(4))
+            y += 1
+            
+            # Show options (rule of 3!)
+            for i, option in enumerate(options, 1):
+                stdscr.addstr(y, 8, f"[{i}] {option}", curses.color_pair(4))
+                y += 1
+            
+            y += 1
+        
+        # Show hire/fire options
+        stdscr.addstr(y, 2, "HIRE/FIRE EMPLOYEES", curses.color_pair(1) | curses.A_BOLD)
+        y += 2
+        for foreman_type in ['development', 'production', 'maintenance']:
+            foreman = self.game_state['foremen'][foreman_type]
+            if foreman['grace_period'] == 0:
+                stdscr.addstr(y, 4, f"[F] Fire {foreman['name']} ({foreman_type})", curses.color_pair(2))
+            y += 1
+        
+        stdscr.addstr(y, 4, "[ENTER] Accept current crew", curses.color_pair(1))
+        
+        # Controls
+        stdscr.addstr(height - 2, 2, "[1-3] Choose for each foreman  [F] Fire  [ENTER] Continue", 
+                     curses.color_pair(4))
+        
+        stdscr.refresh()
+        
+        # Wait for player input - this is simplified for now
+        # In full version, we'd handle individual foreman choices
+        key = stdscr.getch()
+        
+        # For now, just accept current crew
+        if key == ord('\n'):
+            self.game_state['is_pdr_day'] = False
+            
+    def draw_foreman_bar(self, stdscr, y, start_x, label, value, color_pair=4):
+        """Draw a single foreman skill bar"""
+        stdscr.addstr(y, start_x, label, curses.color_pair(1))
+        bar_length = 15
+        filled = int((value / 100) * bar_length)
+        empty = bar_length - filled
+        bar = "█" * filled + "░" * empty
+        stdscr.addstr(y, start_x + 6, f"[{bar}] {value}%", curses.color_pair(4))
+        
+    def resolve_daily_shift(self, stdscr):
+        """Resolve a daily shift - generate events, update equipment, calculate production"""
+        height, width = stdscr.getmaxyx()
+        
+        # Clear screen for shift resolution
+        stdscr.erase()
+        
+        # Show slot machine style event reveal
+        stdscr.addstr(height//2 - 2, width//2 - 10, "SPINNING THE REELS...", curses.color_pair(1) | curses.A_BOLD)
+        
+        # Generate 3 events (rule of 3!)
+        events = self.generate_daily_events()
+        
+        # Show events with slot machine animation
+        y = height//2
+        symbols = ['[X]', '[💰]', '[⛏️]', '[☠️]', '[🔧]']
+        
+        for i, event in enumerate(events):
+            # Animate the symbol reveal
+            for _ in range(3):
+                symbol = symbols[i % len(symbols)]
+                stdscr.addstr(y + i, width//2 - 5, f"{symbol} {event['title']}", curses.color_pair(1))
+                stdscr.refresh()
+                # No sleep in terminal, just show final
+            
+            stdscr.addstr(y + i, width//2 - 5, f"{event['symbol']} {event['title']}", curses.color_pair(event['color']))
+        
+        stdscr.addstr(y + 4, width//2 - 15, "[Press any key to proceed with shift]", curses.color_pair(4))
+        stdscr.refresh()
+        stdscr.getch()
+        
+        # Process each event
+        for event in events:
+            self.process_event(event, stdscr)
+        
+        # Update equipment availability
+        self.update_equipment_condition()
+        
+        # Calculate production
+        daily_production = self.calculate_daily_production()
+        
+        # Update game state
+        self.game_state['tons_surface'] += daily_production
+        
+    def generate_daily_events(self):
+        """Generate 3 random daily events"""
+        event_pool = [
+            {
+                'title': 'Hydraulic leak on LOA01',
+                'type': 'equipment_failure',
+                'symbol': '[🔧]',
+                'color': 2,
+                'equipment': 'LOA01'
+            },
+            {
+                'title': 'Gold price up $15/oz',
+                'type': 'price_change',
+                'symbol': '[💰]',
+                'color': 4,
+                'change': 15
+            },
+            {
+                'title': 'MSHA inspector spotted',
+                'type': 'heat_increase',
+                'symbol': '[☠️]',
+                'color': 2,
+                'heat_type': 'fed',
+                'amount': 10
+            },
+            {
+                'title': 'Crew morale boost',
+                'type': 'crew_event',
+                'symbol': '[⛏️]',
+                'color': 1,
+                'heat_type': 'crew',
+                'amount': -5
+            },
+            {
+                'title': 'Mob collections this week',
+                'type': 'mob_pressure',
+                'symbol': '[X]',
+                'color': 2,
+                'heat_type': 'mob',
+                'amount': 5
+            }
+        ]
+        
+        # Randomly select 3 events based on current heat levels
+        selected_events = []
+        
+        # Always include at least one equipment event if any equipment has <70% availability
+        low_avail_equipment = [eq_id for eq_id, eq in self.game_state['equipment'].items() 
+                              if eq['availability'] < 70]
+        
+        if low_avail_equipment and len(selected_events) < 3:
+            # Add equipment failure event
+            event = event_pool[0].copy()
+            event['equipment'] = low_avail_equipment[0]
+            selected_events.append(event)
+        
+        # Fill remaining slots with random events
+        while len(selected_events) < 3:
+            event = random.choice(event_pool)
+            if event not in selected_events:
+                selected_events.append(event)
+        
+        return selected_events
+        
+    def process_event(self, event, stdscr):
+        """Process a single event and update game state"""
+        if event['type'] == 'equipment_failure':
+            equipment_id = event['equipment']
+            if equipment_id in self.game_state['equipment']:
+                self.game_state['equipment'][equipment_id]['status'] = 'down'
+                self.game_state['equipment'][equipment_id]['availability'] -= 10
+                
+        elif event['type'] == 'heat_increase':
+            self.game_state['heat_levels'][event['heat_type']] += event['amount']
+            self.game_state['heat_levels'][event['heat_type']] = min(100, self.game_state['heat_levels'][event['heat_type']])
+            
+        elif event['type'] == 'crew_event':
+            self.game_state['heat_levels']['crew'] += event['amount']
+            self.game_state['heat_levels']['crew'] = max(0, self.game_state['heat_levels']['crew'])
+            
+        elif event['type'] == 'mob_pressure':
+            self.game_state['heat_levels']['mob'] += event['amount']
+            self.game_state['heat_levels']['mob'] = min(100, self.game_state['heat_levels']['mob'])
+            
+    def update_equipment_condition(self):
+        """Update equipment availability based on age and condition"""
+        for eq_id, equipment in self.game_state['equipment'].items():
+            if equipment['status'] == 'down':
+                continue
+                
+            # Equipment loses availability daily
+            daily_loss = 1
+            if equipment['availability'] < 50:
+                daily_loss = 2  # Worn equipment degrades faster
+                
+            equipment['availability'] -= daily_loss
+            equipment['availability'] = max(0, equipment['availability'])
+            
+            # Update equipment status
+            if equipment['availability'] == 0:
+                equipment['status'] = 'down'
+            elif equipment['availability'] < 30:
+                equipment['status'] = 'critical'
+            elif equipment['availability'] < 60:
+                equipment['status'] = 'poor'
+            elif equipment['availability'] < 80:
+                equipment['status'] = 'fair'
+            else:
+                equipment['status'] = 'good'
+                
+    def calculate_daily_production(self):
+        """Calculate tons produced this shift"""
+        total_tons = 0
+        
+        # Check active loaders
+        for eq_id, equipment in self.game_state['equipment'].items():
+            if equipment['type'] == 'loader' and equipment['status'] == 'manned':
+                # Base production based on loader size and availability
+                if equipment['size'] == 'small':
+                    base_tons = 50
+                elif equipment['size'] == 'medium':
+                    base_tons = 100
+                else:  # large
+                    base_tons = 200
+                    
+                # Modify by availability
+                tons = int(base_tons * (equipment['availability'] / 100))
+                total_tons += tons
+                
+        return total_tons
+        
+    def update_day_of_week(self):
+        """Update day of week and check for PDR day (Monday)"""
+        self.game_state['day_of_week'] = (self.game_state['day_of_week'] % 7) + 1
+        self.game_state['is_pdr_day'] = (self.game_state['day_of_week'] == 1)
+        
+        # Weekly events on Sunday
+        if self.game_state['day_of_week'] == 7:
+            self.process_weekly_events()
             
     def show_splash_screen(self, stdscr):
         """Show splash screen before main game"""
