@@ -350,21 +350,26 @@ class MiningGame:
         self.draw_foreman_bar(stdscr, y, start_x + 8, "PROD", foreman['production'])
         self.draw_foreman_bar(stdscr, y + 1, start_x + 8, "RELY", foreman['reliability'])
         self.draw_foreman_bar(stdscr, y + 2, start_x + 8, "CREW", foreman['crew_moral'])
-            
-            y += 4
-            
-            # Foreman asks their question
-            if foreman_type == 'development':
-                question = "Which heading should we advance this week, boss?"
-                options = ["Left drift", "Right drift", "Continue main drift"]
-            elif foreman_type == 'production':
-                question = "Which stopes should we muck out this week?"
-                options = ["Lucky 7 (Grade: 0.15 oz/ton)", "Explore new area", "Focus on development"]
-            else:  # maintenance
-                question = "What's the maintenance scope for this week?"
-                options = ["Planned maintenance on all equipment", "Basic PM/Oil changes", "Clean shop - reactive only"]
-            
-            stdscr.addstr(y, 6, question, curses.color_pair(4))
+        
+        y += 4
+        
+        # Foreman asks their question
+        if foreman_type == 'development':
+            question = "Which heading should we advance this week, boss?"
+            options = ["Left drift", "Right drift", "Continue main drift"]
+        elif foreman_type == 'production':
+            question = "Which stopes should we muck out this week?"
+            options = ["Lucky 7 (Grade: 0.15 oz/ton)", "Explore new area", "Focus on development"]
+        else:  # maintenance
+            question = "What's the maintenance scope for this week?"
+            options = ["Planned maintenance on all equipment", "Basic PM/Oil changes", "Clean shop - reactive only"]
+        
+        stdscr.addstr(y, 6, question, curses.color_pair(4))
+        y += 1
+        
+        # Show options (rule of 3!)
+        for i, option in enumerate(options, 1):
+            stdscr.addstr(y, 8, f"[{i}] {option}", curses.color_pair(4))
             y += 1
             
             # Show options (rule of 3!)
