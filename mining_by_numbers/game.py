@@ -758,8 +758,6 @@ class MiningGame:
             return True
             
     def show_splash_screen(self, stdscr):
-            
-    def show_splash_screen(self, stdscr):
         """Show splash screen before main game"""
         height, width = stdscr.getmaxyx()
         
